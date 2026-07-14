@@ -1,0 +1,39 @@
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  batch:
+    timeout: 5s
+    send_batch_size: 512
+
+exporters:
+  # 导出到 Jaeger — 保留 UI 查询能力
+  otlp/jaeger:
+    endpoint: jaeger:4317
+    tls:
+      insecure: true
+
+  # 导出到 Kafka — span 流式输出
+  kafka:
+    brokers:
+      - kafka:9092
+    topic: otel-spans
+    protocol_version: 2.0.0
+    # 编码格式（三选一）：
+    #   otlp_proto  — OTLP protobuf（默认，推荐）
+    #   otlp_json   — OTLP JSON
+    #   jaeger_proto — Jaeger protobuf
+    encoding: otlp_json
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [batch]
+      # 同时导出到 Jaeger 和 Kafka
+      exporters: [otlp/jaeger, kafka]

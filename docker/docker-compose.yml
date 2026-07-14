@@ -1,0 +1,91 @@
+services:
+  # ============================================================
+  # Kafka 依赖：Zookeeper
+  # ============================================================
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    container_name: zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - "2181:2181"
+
+  # ============================================================
+  # Kafka Broker
+  # ============================================================
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: kafka
+    depends_on:
+      - zookeeper
+    ports:
+      # 29092：从宿主机连接 Kafka（本地调试/消费用）
+      - "29092:29092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      # 两个 listener：
+      #   PLAINTEXT      — Docker 网络内部（kafka:9092）
+      #   PLAINTEXT_HOST — 宿主机访问（localhost:29092）
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,PLAINTEXT_HOST://0.0.0.0:29092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      # 允许自动创建 topic（Collector 写 otel-spans 时会自动建）
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-broker-api-versions --bootstrap-server localhost:9092 > /dev/null 2>&1"]
+      interval: 5s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+
+  # ============================================================
+  # Kafdrop — Kafka Web UI，浏览消息用
+  # ============================================================
+  kafdrop:
+    image: obsidiandynamics/kafdrop:latest
+    container_name: kafdrop
+    depends_on:
+      - kafka
+    ports:
+      - "9000:9000"
+    environment:
+      KAFKA_BROKERCONNECT: kafka:9092
+      JVM_OPTS: "-Xms32M -Xmx64M"
+      SERVER_SERVLET_CONTEXTPATH: "/"
+
+  # ============================================================
+  # OpenTelemetry Collector — 数据入口，fan-out 到多个后端
+  # ============================================================
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.102.0
+    container_name: otel-collector
+    command: ["--config=/etc/otelcol-config.yaml"]
+    volumes:
+      - ./otelcol-config.yaml:/etc/otelcol-config.yaml
+    depends_on:
+      kafka:
+        condition: service_healthy
+      jaeger:
+        condition: service_started
+    restart: on-failure
+    ports:
+      # OTEL Collector 对外暴露 OTLP 端口，Java 应用连这里
+      - "4317:4317"   # OTLP gRPC
+      - "4318:4318"   # OTLP HTTP
+
+  # ============================================================
+  # Jaeger all-in-one — 仅用于 UI 查询展示
+  # ============================================================
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    container_name: jaeger
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true   # 内部监听 OTLP，供 Collector 转发
+      # 使用默认 in-memory 存储，重启后数据丢失（demo 环境够用）
+    ports:
+      - "16686:16686"   # Jaeger UI → http://localhost:16686
+    # 注意：4317/4318 不再暴露到宿主机，数据统一从 otel-collector 进入
