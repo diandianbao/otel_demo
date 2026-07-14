@@ -31,16 +31,19 @@ echo "========================================"
 echo "  otel-demo (OTLP HTTP/Protobuf → :4318)"
 echo "========================================"
 echo "  Agent:    2.29.0"
+echo "  Agent:    2.29.0"
 echo "  Format:   HTTP/Protobuf (注: Agent 不支持 http/json)"
 echo "  Endpoint: http://localhost:4318"
 echo "  Jaeger:   http://localhost:16686"
 echo "  App:      http://localhost:8080"
+echo "  Env:      agent_code=${AGENT_CODE:-default}"
 echo "========================================"
 
 java \
   -javaagent:"$AGENT_JAR" \
   $EXTENSION_ARGS \
   -Dotel.service.name=otel-demo \
+  -Dotel.resource.attributes=agent_code=${AGENT_CODE:-default} \
   -Dotel.traces.exporter=otlp \
   -Dotel.exporter.otlp.protocol=http/protobuf \
   -Dotel.exporter.otlp.endpoint=http://localhost:4318 \
