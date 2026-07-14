@@ -118,3 +118,22 @@ services:
         jobmanager.rpc.address: flink-jobmanager
         taskmanager.numberOfTaskSlots: 4
     command: taskmanager
+
+  # ============================================================
+  # PostgreSQL — trace / span 存储
+  # ============================================================
+  postgres:
+    image: postgres:16
+    container_name: postgres
+    environment:
+      POSTGRES_DB: otel
+      POSTGRES_USER: otel
+      POSTGRES_PASSWORD: otel123
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:
