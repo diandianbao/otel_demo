@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>com.oteldemo</groupId>
+    <artifactId>otel-javaagent-extension</artifactId>
+    <version>1.0.0</version>
+    <packaging>jar</packaging>
+
+    <name>OTel Java Agent Extension - Request/Response Body Capture</name>
+    <description>捕获 Spring Controller 的 Request Body 和 Response Body 并写入 Span</description>
+
+    <properties>
+        <java.version>17</java.version>
+        <maven.compiler.source>17</maven.compiler.source>
+        <maven.compiler.target>17</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <!-- 与 opentelemetry-javaagent 版本保持一致 -->
+        <otel.javaagent.version>2.29.0-alpha</otel.javaagent.version>
+    </properties>
+
+    <dependencies>
+        <!-- OTel Extension API: 提供 InstrumentationModule, TypeInstrumentation 等接口 -->
+        <dependency>
+            <groupId>io.opentelemetry.javaagent</groupId>
+            <artifactId>opentelemetry-javaagent-extension-api</artifactId>
+            <version>${otel.javaagent.version}</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- Byte Buddy: 字节码增强，provided 因为 agent 内部已包含 -->
+        <dependency>
+            <groupId>net.bytebuddy</groupId>
+            <artifactId>byte-buddy</artifactId>
+            <version>1.14.18</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- OTel API: Span.current() 等 -->
+        <dependency>
+            <groupId>io.opentelemetry</groupId>
+            <artifactId>opentelemetry-api</artifactId>
+            <version>1.42.1</version>
+            <scope>provided</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.13.0</version>
+                <configuration>
+                    <source>17</source>
+                    <target>17</target>
+                    <compilerArgs>
+                        <!-- 给 Advice 内部类生成调试信息 -->
+                        <arg>-parameters</arg>
+                    </compilerArgs>
+                </configuration>
+            </plugin>
+
+            <!-- 打包成普通 JAR，不要把依赖打进去 -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <version>3.4.2</version>
+            </plugin>
+        </plugins>
+    </build>
+</project>
