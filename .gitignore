@@ -1,0 +1,14 @@
+# OpenTelemetry Java Agent
+opentelemetry-javaagent.jar
+
+# Maven build output
+target/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# OS
+.DS_Store
+.playwright-mcp/
