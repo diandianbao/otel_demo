@@ -89,3 +89,32 @@ services:
     ports:
       - "16686:16686"   # Jaeger UI → http://localhost:16686
     # 注意：4317/4318 不再暴露到宿主机，数据统一从 otel-collector 进入
+
+  # ============================================================
+  # Apache Flink — 流处理 Kafka 中的 span 数据
+  # ============================================================
+  flink-jobmanager:
+    image: flink:1.19-scala_2.12
+    container_name: flink-jobmanager
+    depends_on:
+      - kafka
+    ports:
+      - "8081:8081"     # Flink Web UI → http://localhost:8081
+      - "6123:6123"     # RPC（TaskManager 连接用）
+    environment:
+      FLINK_PROPERTIES: |
+        jobmanager.rpc.address: flink-jobmanager
+        taskmanager.numberOfTaskSlots: 4
+        parallelism.default: 2
+    command: jobmanager
+
+  flink-taskmanager:
+    image: flink:1.19-scala_2.12
+    container_name: flink-taskmanager
+    depends_on:
+      - flink-jobmanager
+    environment:
+      FLINK_PROPERTIES: |
+        jobmanager.rpc.address: flink-jobmanager
+        taskmanager.numberOfTaskSlots: 4
+    command: taskmanager
